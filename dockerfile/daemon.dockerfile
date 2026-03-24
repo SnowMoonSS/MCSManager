@@ -14,12 +14,18 @@ RUN apk add --no-cache wget &&\
     wget --input-file=lib-urls.txt --directory-prefix=production-code/daemon/lib/ &&\
     chmod a+x production-code/daemon/lib/*
 
-FROM eclipse-temurin:${EMBEDDED_JAVA_VERSION}-jdk
+#FROM eclipse-temurin:${EMBEDDED_JAVA_VERSION}-jdk
+FROM ghcr.io/linuxserver/baseimage-debian:bookworm
 
 ARG DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y curl &&\
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        curl \
+        temurin-${EMBEDDED_JAVA_VERSION}-jre &&\
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash &&\
-    apt-get update && apt-get install -y nodejs && apt-get clean
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+        nodejs
 
 WORKDIR /opt/mcsmanager/daemon
 
