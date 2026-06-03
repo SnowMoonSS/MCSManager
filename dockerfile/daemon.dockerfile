@@ -14,17 +14,25 @@ RUN apk add --no-cache wget &&\
     wget --input-file=lib-urls.txt --directory-prefix=production-code/daemon/lib/ &&\
     chmod a+x production-code/daemon/lib/*
 
-FROM eclipse-temurin:${EMBEDDED_JAVA_VERSION} AS temurin-stage
-
 FROM ghcr.io/linuxserver/baseimage-debian:trixie
 
-ENV JAVA_HOME=/opt/java/openjdk
-COPY --from=temurin-stage $JAVA_HOME $JAVA_HOME
-ENV PATH="${JAVA_HOME}/bin:${PATH}"
+ARG EMBEDDED_JAVA_VERSION
 
-RUN apt-get update && apt-get install -y curl &&\
+RUN apt-get update && \
+    apt-get install -y -no-install-recommends \
+    curl \
+    wget \
+    apt-transport-https \
+    gpg &&\
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash &&\
-    apt-get update && apt-get install -y nodejs && apt-get clean
+    wget -qO - https://packages.adoptium.net/artifactory/api/gpg/key/public | gpg --dearmor | tee /etc/apt/trusted.gpg.d/adoptium.gpg > /dev/null &&\
+    echo "deb https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" | tee /etc/apt/sources.list.d/adoptium.list &&\
+    mkdir -p /usr/share/man/man1 &&\
+    apt-get update && \
+    apt-get install -y -no-install-recommends \
+    nodejs \
+    temurin-${EMBEDDED_JAVA_VERSION} && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /src/production-code/daemon/ /opt/mcsmanager/daemon/
 
