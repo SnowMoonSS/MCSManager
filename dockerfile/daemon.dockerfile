@@ -19,7 +19,7 @@ FROM ghcr.io/linuxserver/baseimage-debian:trixie
 ARG EMBEDDED_JAVA_VERSION
 
 RUN apt-get update && \
-    apt-get install -y -no-install-recommends \
+    apt-get install -y --no-install-recommends \
     curl \
     wget \
     apt-transport-https \
@@ -29,7 +29,7 @@ RUN apt-get update && \
     echo "deb https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" | tee /etc/apt/sources.list.d/adoptium.list &&\
     mkdir -p /usr/share/man/man1 &&\
     apt-get update && \
-    apt-get install -y -no-install-recommends \
+    apt-get install -y --no-install-recommends \
     nodejs \
     temurin-${EMBEDDED_JAVA_VERSION} && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
