@@ -31,7 +31,7 @@ RUN apt-get update && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
     nodejs \
-    temurin-${EMBEDDED_JAVA_VERSION} && \
+    temurin-${EMBEDDED_JAVA_VERSION}-jdk && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /src/production-code/daemon/ /opt/mcsmanager/daemon/
