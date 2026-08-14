@@ -7,6 +7,7 @@ import { $t } from "../i18n";
 import permission from "../middleware/permission";
 import validator from "../middleware/validator";
 import { getInstancesByUuid } from "../service/instance_service";
+import { getOperationLoggerOperator, operationLogger } from "../service/operation_logger";
 import {
   bind2FA,
   confirm2FaQRCode,
@@ -16,7 +17,7 @@ import {
   isAjax,
   logout
 } from "../service/passport_service";
-import { getUserByUserName, isTopPermissionByUuid } from "../service/permission_service";
+import { isTopPermissionByUuid } from "../service/permission_service";
 import userSystem from "../service/user_service";
 import { systemConfig } from "../setting";
 
@@ -65,7 +66,12 @@ router.put("/update", permission({ level: ROLE.USER }), async (ctx: Koa.Paramete
     const { passWord, isInit } = config;
     if (!userSystem.validatePassword(passWord))
       throw new Error($t("TXT_CODE_router.user.passwordCheck"));
+    const user = userSystem.getInstance(userUuid);
     await userSystem.edit(userUuid, { passWord, isInit });
+    operationLogger.log("user_config_change", {
+      ...getOperationLoggerOperator(ctx),
+      target_user_name: user?.userName
+    });
     ctx.body = logout(ctx);
   }
 });
@@ -80,7 +86,12 @@ router.put("/api", permission({ level: ROLE.USER }), async (ctx: Koa.Parameteriz
   try {
     if (user) {
       if (enable) {
-        if (!systemConfig?.enableApiKey) throw new Error($t("TXT_CODE_db253979"));
+        const enableApiKey = systemConfig?.enableApiKey || false;
+        if (!enableApiKey) throw new Error($t("TXT_CODE_db253979"));
+
+        if (enableApiKey === "ONLY_ADMIN" && user.permission < ROLE.ADMIN)
+          throw new Error($t("TXT_CODE_db253979"));
+
         newKey = v4().replace(/-/gim, "");
         await userSystem.edit(userUuid, {
           apiKey: newKey
@@ -90,6 +101,15 @@ router.put("/api", permission({ level: ROLE.USER }), async (ctx: Koa.Parameteriz
           apiKey: ""
         });
       }
+      operationLogger.log(
+        "user_apikey_change",
+        {
+          ...getOperationLoggerOperator(ctx),
+          target_user_name: user.userName,
+          enabled: Boolean(enable)
+        },
+        "warning"
+      );
     }
     ctx.body = newKey;
   } catch (error: any) {
@@ -124,30 +144,6 @@ router.post(
     const userUuid = getUserUuid(ctx);
     await confirm2FaQRCode(userUuid, enable);
     ctx.body = true;
-  }
-);
-
-// [Public Permission]
-router.get(
-  "/query_username",
-  permission({ token: false, level: null }),
-  validator({
-    query: { username: String }
-  }),
-  async (ctx: Koa.ParameterizedContext) => {
-    const userName = String(ctx.request.query.username);
-    const user = getUserByUserName(userName);
-    if (!user) {
-      ctx.body = {
-        uuid: null,
-        userName: null
-      };
-    } else {
-      ctx.body = {
-        uuid: user?.uuid,
-        userName: user?.userName
-      };
-    }
   }
 );
 
